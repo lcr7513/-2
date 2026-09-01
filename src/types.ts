@@ -20,17 +20,31 @@ export type StampType =
   | '미확인';
 
 export interface StudentProfile {
+  id: string;
   school: string;
   grade: number;
   classRoom: number;
   studentNumber: number;
   name: string;
+  password?: string; // Student password set during registration
+  status?: 'approved' | 'pending' | 'rejected'; // Registration status
+  appliedAt?: string;
+  approvedAt?: string;
+  rejectReason?: string;
   targetCount: number;
   pledge: string;
   favoriteGenre: GenreType;
   motto: string;
   startDate: string;
   avatar: string;
+}
+
+export interface TeacherInfo {
+  name: string;
+  school: string;
+  grade: number;
+  classRoom: number;
+  isLoggedIn: boolean;
 }
 
 export interface BookEntry {

@@ -1,18 +1,97 @@
 import { StudentProfile, BookEntry, ActivityData, ReadingMilestone } from '../types';
 
-export const initialProfile: StudentProfile = {
-  school: '은빛초등학교',
-  grade: 3,
-  classRoom: 2,
-  studentNumber: 15,
-  name: '이지우',
-  targetCount: 50,
-  pledge: '매일 잠들기 전 20분씩 책을 읽고, 새로운 단어를 배우며 고운 마음을 키우겠습니다!',
-  favoriteGenre: '동화·소설',
-  motto: '책 속에 나의 꿈과 보물이 가득해요 ✨',
-  startDate: '2026-03-02',
-  avatar: '🌱',
-};
+export const initialStudents: StudentProfile[] = [
+  {
+    id: 'student-1',
+    school: '은빛초등학교',
+    grade: 3,
+    classRoom: 2,
+    studentNumber: 15,
+    name: '이지우',
+    password: '123',
+    status: 'approved',
+    appliedAt: '2026-03-01',
+    approvedAt: '2026-03-02',
+    targetCount: 50,
+    pledge: '매일 잠들기 전 20분씩 책을 읽고, 새로운 단어를 배우며 고운 마음을 키우겠습니다!',
+    favoriteGenre: '동화·소설',
+    motto: '책 속에 나의 꿈과 보물이 가득해요 ✨',
+    startDate: '2026-03-02',
+    avatar: '🌱',
+  },
+  {
+    id: 'student-2',
+    school: '꿈나무초등학교',
+    grade: 4,
+    classRoom: 1,
+    studentNumber: 8,
+    name: '김민준',
+    password: '123',
+    status: 'approved',
+    appliedAt: '2026-03-02',
+    approvedAt: '2026-03-03',
+    targetCount: 40,
+    pledge: '우주와 과학 책을 많이 읽어서 미래의 멋진 과학자가 되겠습니다!',
+    favoriteGenre: '과학·수학',
+    motto: '호기심과 상상력으로 세상을 탐험하자 🚀',
+    startDate: '2026-03-03',
+    avatar: '🚀',
+  },
+  {
+    id: 'student-3',
+    school: '늘푸른초등학교',
+    grade: 2,
+    classRoom: 3,
+    studentNumber: 21,
+    name: '박서아',
+    password: '123',
+    status: 'approved',
+    appliedAt: '2026-03-04',
+    approvedAt: '2026-03-05',
+    targetCount: 30,
+    pledge: '재미있는 동화와 그림책을 즐겁게 읽고 친구들에게 이야기해 줄래요!',
+    favoriteGenre: '동화·소설',
+    motto: '따뜻한 마음을 나누는 이야기 요정 🌟',
+    startDate: '2026-03-05',
+    avatar: '🌟',
+  },
+  {
+    id: 'student-4',
+    school: '은빛초등학교',
+    grade: 3,
+    classRoom: 2,
+    studentNumber: 7,
+    name: '최도윤',
+    password: '456',
+    status: 'pending',
+    appliedAt: '2026-04-10',
+    targetCount: 35,
+    pledge: '역사와 모험 책을 재미있게 읽고 용기를 기르고 싶어요!',
+    favoriteGenre: '위인·역사',
+    motto: '오늘의 한 줄이 내일의 지혜가 된다 📖',
+    startDate: '2026-04-10',
+    avatar: '🦁',
+  },
+  {
+    id: 'student-5',
+    school: '은빛초등학교',
+    grade: 3,
+    classRoom: 2,
+    studentNumber: 23,
+    name: '한예은',
+    password: '789',
+    status: 'pending',
+    appliedAt: '2026-04-11',
+    targetCount: 45,
+    pledge: '다양한 동시와 예술 도서를 읽고 그림을 그릴래요!',
+    favoriteGenre: '예술·체육',
+    motto: '상상력으로 가득 찬 세상 만들기 🎨',
+    startDate: '2026-04-11',
+    avatar: '🎨',
+  }
+];
+
+export const initialProfile: StudentProfile = initialStudents[0];
 
 export const initialBooks: BookEntry[] = [
   {
@@ -414,6 +493,180 @@ export const readingMilestones: ReadingMilestone[] = [
     description: '100권 돌파! 세상을 밝히는 지혜의 등불!'
   }
 ];
+
+export const initialBooksByStudent: Record<string, BookEntry[]> = {
+  'student-1': initialBooks,
+  'student-2': [
+    {
+      id: 's2-b1',
+      date: '2026-03-05',
+      title: '코스모스 (청소년을 위한 우주 이야기)',
+      author: '칼 세이건 (청소년판)',
+      publisher: '사이언스북스',
+      pages: 210,
+      genre: '과학·수학',
+      rating: 5,
+      oneLineReview: '끝없이 펼쳐진 신비로운 우주와 별들의 탄생 이야기에 푹 빠졌습니다.',
+      stamp: '독서왕',
+      hasActivity: true,
+      activityId: 's2-act-1',
+    },
+    {
+      id: 's2-b2',
+      date: '2026-03-12',
+      title: '로봇 친구와 인공지능의 미래',
+      author: '이정모',
+      publisher: '주니어김영사',
+      pages: 145,
+      genre: '과학·수학',
+      rating: 5,
+      oneLineReview: '인공지능 로봇과 인간이 친구가 되어 살아가는 미래 도시를 상상해 보았습니다.',
+      stamp: '참 잘했어요',
+      hasActivity: true,
+      activityId: 's2-act-2',
+    },
+    {
+      id: 's2-b3',
+      date: '2026-03-19',
+      title: '장영실: 조선 최고의 천재 과학자',
+      author: '김하은',
+      publisher: '아이세움',
+      pages: 160,
+      genre: '위인·역사',
+      rating: 5,
+      oneLineReview: '신분의 한계를 뛰어넘어 자격루와 측우기를 발명한 끈기와 열정에 감동받았습니다.',
+      stamp: '최고예요!',
+      hasActivity: false,
+    },
+    {
+      id: 's2-b4',
+      date: '2026-03-27',
+      title: '마법 천자문 1권',
+      author: '스튜디오 시리얼',
+      publisher: '아울북',
+      pages: 172,
+      genre: '학습만화',
+      rating: 4,
+      oneLineReview: '손오공과 함께 한자 마법을 외우며 재미있게 한자를 익혔습니다.',
+      stamp: '대단해요!',
+      hasActivity: false,
+    },
+    {
+      id: 's2-b5',
+      date: '2026-04-05',
+      title: '비밀의 화원',
+      author: '프랜시스 호지슨 버넷',
+      publisher: '시공주니어',
+      pages: 280,
+      genre: '동화·소설',
+      rating: 5,
+      oneLineReview: '자연과 꽃을 가꾸며 메리와 콜린의 마음이 건강하게 피어나는 과정이 아름다웠어요.',
+      stamp: '하트뿜뿜',
+      hasActivity: false,
+    }
+  ],
+  'student-3': [
+    {
+      id: 's3-b1',
+      date: '2026-03-08',
+      title: '구름빵',
+      author: '백희나',
+      publisher: '한솔수북',
+      pages: 44,
+      genre: '동화·소설',
+      rating: 5,
+      oneLineReview: '따뜻한 구름빵을 먹고 하늘을 둥둥 날아 아빠에게 배달하는 상상이 정말 귀여웠어요!',
+      stamp: '참 잘했어요',
+      hasActivity: true,
+      activityId: 's3-act-1',
+    },
+    {
+      id: 's3-b2',
+      date: '2026-03-16',
+      title: '알사탕',
+      author: '백희나',
+      publisher: '책읽는곰',
+      pages: 48,
+      genre: '동화·소설',
+      rating: 5,
+      oneLineReview: '마음의 소리를 들려주는 달콤한 알사탕을 나도 꼭 먹어보고 싶어요.',
+      stamp: '독서왕',
+      hasActivity: false,
+    },
+    {
+      id: 's3-b3',
+      date: '2026-03-25',
+      title: '풀꽃 그림책: 나태주 동시집',
+      author: '나태주',
+      publisher: '예담',
+      pages: 88,
+      genre: '시·동시',
+      rating: 5,
+      oneLineReview: '자세히 보아야 예쁘고 오래 보아야 사랑스럽다는 말이 가슴에 남아요.',
+      stamp: '반짝별',
+      hasActivity: false,
+    }
+  ]
+};
+
+export const initialActivitiesByStudent: Record<string, ActivityData[]> = {
+  'student-1': initialActivities,
+  'student-2': [
+    {
+      id: 's2-act-1',
+      bookId: 's2-b1',
+      bookTitle: '코스모스 (청소년을 위한 우주 이야기)',
+      author: '칼 세이건 (청소년판)',
+      type: 'book_ad',
+      date: '2026-03-06',
+      content: {
+        catchphrase: '우리는 모두 별에서 온 아이들! 광활한 우주 대모험을 떠나자!',
+        targetReader: '밤하늘 별을 바라보며 우주 과학자의 꿈을 키우는 친구들',
+        reasonsToRead: [
+          '지구와 태양계, 은하계의 신비로운 탄생 비밀을 알기 쉽게 설명해 줍니다.',
+          '어렵고 복잡한 천문학을 한 편의 시처럼 아름답게 풀어냅니다.',
+          '우주 속에서 지구라는 작은 행성을 아끼고 사랑하는 마음을 배울 수 있습니다.'
+        ]
+      },
+      teacherStamp: '독서왕',
+      teacherComment: '우주에 대한 깊은 호기심과 추천 포인트를 잘 살려 광고지를 멋지게 구성했네요!'
+    },
+    {
+      id: 's2-act-2',
+      bookId: 's2-b2',
+      bookTitle: '로봇 친구와 인공지능의 미래',
+      author: '이정모',
+      type: 'character_letter',
+      date: '2026-03-14',
+      content: {
+        receiver: '미래에서 온 반려 로봇 알파에게',
+        letterGreeting: '안녕 알파! 나는 미래의 로봇 공학자를 꿈꾸는 4학년 민준이야.',
+        letterBody: '책 속에서 네가 사람의 마음을 헤아리고 친구가 되어주는 모습을 보며 감동을 받았어. 나도 열심히 공부해서 도움이 필요한 사람들을 따뜻하게 위로하고 안전하게 지켜주는 착한 로봇을 만들고 싶어. 미래에 우리 진짜 친구로 만나자!',
+        letterSender: '2026년 3월 14일, 너를 기다리는 민준이가 🚀'
+      },
+      teacherStamp: '참 잘했어요',
+      teacherComment: '진심 어린 편지를 통해 자신의 장래 희망과 과학적 포부를 훌륭하게 표현했습니다.'
+    }
+  ],
+  'student-3': [
+    {
+      id: 's3-act-1',
+      bookId: 's3-b1',
+      bookTitle: '구름빵',
+      author: '백희나',
+      type: 'summary_impression',
+      date: '2026-03-09',
+      content: {
+        motivation: '표지의 귀여운 고양이 그림과 구름으로 빵을 만든다는 이야기가 신기해서 읽었습니다.',
+        summary: '비 오는 날 아침, 나뭇가지에 걸린 작은 뭉게구름을 따서 엄마가 맛있는 구름빵을 구워주셨다. 구름빵을 먹고 둥실 떠오른 홍비와 홍시는 꽉 막힌 도로에서 고생하시는 아빠에게 날아가 구름빵을 전해드려 아빠가 무사히 회사에 도착하도록 도왔다.',
+        impressiveScene: '빗속을 날아서 회사 버스에 갇혀 계시던 아빠에게 따뜻한 구름빵을 건네던 장면',
+        impression: '가족을 사랑하는 따뜻한 마음이 느껴져서 마음이 몽글몽글해졌습니다. 나도 부모님께 효도하고 싶어요.'
+      },
+      teacherStamp: '참 잘했어요',
+      teacherComment: '책의 줄거리와 따스한 감동을 솔직하고 예쁘게 잘 정리했어요!'
+    }
+  ]
+};
 
 export const GENRE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   '동화·소설': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },

@@ -67,6 +67,7 @@ export const ReadingBankbook: React.FC<ReadingBankbookProps> = ({
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'rating' | 'pages'>('date_asc');
   const [editingBook, setEditingBook] = useState<BookEntry | null>(null);
+  const [bookToDelete, setBookToDelete] = useState<BookEntry | null>(null);
 
   // Form State for Add / Edit Modal
   const [title, setTitle] = useState('');
@@ -464,12 +465,8 @@ export const ReadingBankbook: React.FC<ReadingBankbookProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm(`'${book.title}' 독서 기록을 삭제하시겠습니까?`)) {
-                                onDeleteBook(book.id);
-                              }
-                            }}
-                            className="p-1 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                            onClick={() => setBookToDelete(book)}
+                            className="p-1 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                             title="삭제"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -674,6 +671,49 @@ export const ReadingBankbook: React.FC<ReadingBankbookProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Book Delete Confirmation Modal */}
+      {bookToDelete && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border-2 border-rose-300 space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600 font-bold shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-jua text-lg text-stone-900">독서 기록 삭제</h4>
+                <p className="text-xs text-rose-600 font-bold">기록을 통장에서 삭제하시겠습니까?</p>
+              </div>
+            </div>
+
+            <div className="bg-stone-50 p-3.5 rounded-2xl border border-stone-200 text-xs space-y-1">
+              <p className="font-bold text-stone-900 text-sm">📖 {bookToDelete.title}</p>
+              <p className="text-stone-600">지은이: {bookToDelete.author} • {bookToDelete.pages}쪽</p>
+              <p className="text-stone-500 text-[11px]">읽은 날: {bookToDelete.date}</p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setBookToDelete(null)}
+                className="px-4 py-2 rounded-xl text-stone-600 hover:bg-stone-100 font-bold text-xs cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteBook(bookToDelete.id);
+                  setBookToDelete(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                삭제하기
+              </button>
+            </div>
           </div>
         </div>
       )}
