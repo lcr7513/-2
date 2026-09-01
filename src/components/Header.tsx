@@ -1,0 +1,149 @@
+import React from 'react';
+import { 
+  BookOpen, 
+  Sparkles, 
+  Award, 
+  TreePine, 
+  PieChart, 
+  Printer, 
+  PlusCircle, 
+  RotateCcw,
+  GraduationCap,
+  BookmarkCheck
+} from 'lucide-react';
+import { StudentProfile, BookEntry } from '../types';
+
+interface HeaderProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  profile: StudentProfile;
+  books: BookEntry[];
+  onOpenAddModal: () => void;
+  onResetData: () => void;
+  onTriggerPrint: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({
+  activeTab,
+  setActiveTab,
+  profile,
+  books,
+  onOpenAddModal,
+  onResetData,
+  onTriggerPrint
+}) => {
+  const totalBooks = books.length;
+  const totalPages = books.reduce((acc, curr) => acc + (curr.pages || 0), 0);
+  const progressPercent = Math.min(100, Math.round((totalBooks / (profile.targetCount || 50)) * 100));
+
+  const navItems = [
+    { id: 'bankbook', label: '독서 통장', icon: BookOpen, tag: `${totalBooks}권 기록` },
+    { id: 'worksheet', label: '독후 활동장', icon: Sparkles, tag: '9가지 양식' },
+    { id: 'tree', label: '독서 나무 & 스티커', icon: TreePine, tag: `${progressPercent}%` },
+    { id: 'stats', label: '독서 분석', icon: PieChart, tag: '장르/통계' },
+    { id: 'profile', label: '나의 다짐', icon: GraduationCap, tag: '학생 정보' },
+    { id: 'print', label: '제출용 인쇄', icon: Printer, tag: 'A4 양식' },
+  ];
+
+  return (
+    <header className="bg-white border-b-2 border-amber-200 shadow-sm sticky top-0 z-30 no-print">
+      {/* Top Banner Ribbon */}
+      <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white px-4 py-2">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="bg-white/20 text-white text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <BookmarkCheck className="w-3.5 h-3.5" />
+              에듀트랙 표준 양식
+            </span>
+            <h1 className="font-jua text-lg md:text-xl tracking-wide flex items-center gap-1.5">
+              <span>초등학생 독서 기록장</span>
+              <span className="text-amber-200 text-sm font-normal hidden sm:inline">| 즐거운 책 읽기 습관</span>
+            </h1>
+          </div>
+
+          {/* Student Badge & Quick Actions */}
+          <div className="flex items-center gap-3 text-xs md:text-sm">
+            <div className="bg-black/15 backdrop-blur-sm px-3 py-1 rounded-full border border-white/20 flex items-center gap-2">
+              <span className="font-semibold">{profile.school}</span>
+              <span className="text-amber-200 font-bold">{profile.grade}학년 {profile.classRoom}반 {profile.studentNumber}번</span>
+              <span className="font-bold underline underline-offset-2">{profile.name}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={onResetData}
+              className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors text-xs flex items-center gap-1"
+              title="예시 데이터 다시 불러오기"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">예시 초기화</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Bar with Navigation & Stats */}
+      <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+          
+          {/* Notebook Navigation Tabs */}
+          <nav className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0 scrollbar-none">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  id={`nav-tab-${item.id}`}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-amber-500 text-white shadow-md shadow-amber-200 -translate-y-0.5'
+                      : 'bg-stone-100 text-stone-700 hover:bg-amber-100/60 hover:text-amber-900 border border-stone-200'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-amber-600'}`} />
+                  <span>{item.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                    isActive ? 'bg-amber-700 text-amber-100' : 'bg-stone-200 text-stone-600'
+                  }`}>
+                    {item.tag}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Action Buttons & Goal Progress */}
+          <div className="flex items-center justify-between lg:justify-end w-full lg:w-auto gap-3">
+            {/* Reading Mini Progress bar */}
+            <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+              <div className="flex flex-col text-left">
+                <span className="text-[11px] text-amber-800 font-medium">목표 달성률 ({totalBooks}/{profile.targetCount}권)</span>
+                <div className="w-28 sm:w-32 bg-amber-200 rounded-full h-2 mt-0.5 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+              <span className="font-jua text-amber-900 text-base">{progressPercent}%</span>
+            </div>
+
+            {/* Add Book Button */}
+            <button
+              id="header-add-book-btn"
+              type="button"
+              onClick={onOpenAddModal}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-emerald-200 transition-all hover:scale-105 active:scale-95 whitespace-nowrap cursor-pointer"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>새 책 기록하기</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </header>
+  );
+};
