@@ -30,6 +30,7 @@ interface HeaderProps {
   onOpenStudentManager: () => void;
   onOpenTeacherLogin: () => void;
   onOpenTeacherDashboard: () => void;
+  onOpenFirebaseStatus?: () => void;
   onResetData: () => void;
   onTriggerPrint: () => void;
 }
@@ -46,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenStudentManager,
   onOpenTeacherLogin,
   onOpenTeacherDashboard,
+  onOpenFirebaseStatus,
   onResetData,
   onTriggerPrint
 }) => {
@@ -111,6 +113,19 @@ export const Header: React.FC<HeaderProps> = ({
                     신청 {pendingStudentsCount}
                   </span>
                 )}
+              </button>
+            )}
+
+            {/* Cloud DB Status Indicator Button */}
+            {onOpenFirebaseStatus && (
+              <button
+                type="button"
+                onClick={onOpenFirebaseStatus}
+                className="bg-emerald-800/80 hover:bg-emerald-800 text-emerald-100 hover:text-white px-2.5 py-1 rounded-full border border-emerald-400/40 flex items-center gap-1 font-bold transition-all shadow-xs cursor-pointer"
+                title="Google Firebase 클라우드 데이터베이스 실시간 연동 상태"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
+                <span className="text-[11px]">클라우드 DB</span>
               </button>
             )}
 

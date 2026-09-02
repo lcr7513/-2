@@ -22,6 +22,21 @@ import { TeacherDashboardModal } from './components/TeacherDashboardModal';
 import { ReadingTree } from './components/ReadingTree';
 import { ReadingAnalytics } from './components/ReadingAnalytics';
 import { PrintablePortfolio } from './components/PrintablePortfolio';
+import { FirebaseStatusModal } from './components/FirebaseStatusModal';
+import {
+  subscribeToStudents,
+  subscribeToStudentBooks,
+  subscribeToStudentActivities,
+  saveStudentToFirebase,
+  deleteStudentFromFirebase,
+  saveBookToFirebase,
+  deleteBookFromFirebase,
+  saveActivityToFirebase,
+  deleteActivityFromFirebase,
+  seedInitialDataIfEmpty,
+  resetAllFirebaseData
+} from './services/firebaseService';
+import { Trash2 } from 'lucide-react';
 
 export default function App() {
   // 1. Teacher Authentication & Password State
@@ -36,6 +51,12 @@ export default function App() {
   const [isTeacherLoginModalOpen, setIsTeacherLoginModalOpen] = useState(false);
   const [isTeacherDashboardOpen, setIsTeacherDashboardOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isFirebaseStatusOpen, setIsFirebaseStatusOpen] = useState(false);
+
+  // Cloud Sync State
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   // 2. Students List
   const [students, setStudents] = useState<StudentProfile[]>(() => {
@@ -44,19 +65,6 @@ export default function App() {
       try { 
         const parsed = JSON.parse(saved); 
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {}
-    }
-    // Check old single profile
-    const oldProfile = localStorage.getItem('edutrack_reading_profile');
-    if (oldProfile) {
-      try {
-        const parsedOld = JSON.parse(oldProfile);
-        return [{
-          ...parsedOld,
-          id: parsedOld.id || 'student-1',
-          status: 'approved',
-          password: '123'
-        }];
       } catch (e) {}
     }
     return initialStudents;
@@ -75,16 +83,6 @@ export default function App() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    // Check old books
-    const oldBooks = localStorage.getItem('edutrack_reading_books');
-    if (oldBooks) {
-      try {
-        return {
-          ...initialBooksByStudent,
-          'student-1': JSON.parse(oldBooks)
-        };
-      } catch (e) {}
-    }
     return initialBooksByStudent;
   });
 
@@ -93,18 +91,78 @@ export default function App() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    // Check old activities
-    const oldActs = localStorage.getItem('edutrack_reading_activities');
-    if (oldActs) {
-      try {
-        return {
-          ...initialActivitiesByStudent,
-          'student-1': JSON.parse(oldActs)
-        };
-      } catch (e) {}
-    }
     return initialActivitiesByStudent;
   });
+
+  // Setup Firebase Real-time listeners & Initial seeding
+  useEffect(() => {
+    let unsubscribeStudents: (() => void) | undefined;
+
+    const initFirebase = async () => {
+      try {
+        setIsCloudSyncing(true);
+        // Seed initial data if Firestore database is empty
+        await seedInitialDataIfEmpty(initialStudents, initialBooksByStudent, initialActivitiesByStudent);
+
+        // Subscribe to students collection in realtime
+        unsubscribeStudents = subscribeToStudents(
+          (cloudStudents) => {
+            if (cloudStudents && cloudStudents.length > 0) {
+              setStudents(cloudStudents);
+              setLastSyncedAt(new Date());
+              setSyncError(null);
+            }
+          },
+          (err) => {
+            console.warn('Firebase sync note:', err);
+            setSyncError('클라우드 DB 동기화 대기 중');
+          }
+        );
+      } catch (err: any) {
+        console.error('Firebase init error:', err);
+      } finally {
+        setIsCloudSyncing(false);
+      }
+    };
+
+    initFirebase();
+
+    return () => {
+      if (unsubscribeStudents) unsubscribeStudents();
+    };
+  }, []);
+
+  // Real-time listener for current student's books and activities
+  useEffect(() => {
+    if (!currentStudentId) return;
+
+    const unsubBooks = subscribeToStudentBooks(
+      currentStudentId,
+      (cloudBooks) => {
+        setBooksByStudent((prev) => ({
+          ...prev,
+          [currentStudentId]: cloudBooks
+        }));
+        setLastSyncedAt(new Date());
+      }
+    );
+
+    const unsubActs = subscribeToStudentActivities(
+      currentStudentId,
+      (cloudActs) => {
+        setActivitiesByStudent((prev) => ({
+          ...prev,
+          [currentStudentId]: cloudActs
+        }));
+        setLastSyncedAt(new Date());
+      }
+    );
+
+    return () => {
+      unsubBooks();
+      unsubActs();
+    };
+  }, [currentStudentId]);
 
   // Active student profile, books, and activities
   const currentProfile: StudentProfile = useMemo(() => {
@@ -144,7 +202,7 @@ export default function App() {
   const [selectedBookForActivity, setSelectedBookForActivity] = useState<BookEntry | undefined>();
   const [editingActivity, setEditingActivity] = useState<ActivityData | null>(null);
 
-  // Sync to LocalStorage
+  // Sync to LocalStorage (Offline & Fast Startup Cache)
   useEffect(() => {
     localStorage.setItem('edutrack_students_list', JSON.stringify(students));
   }, [students]);
@@ -185,44 +243,48 @@ export default function App() {
   };
 
   // Student Approval Handlers
-  const handleApproveStudent = (studentId: string) => {
-    setStudents(prev => prev.map(s => {
-      if (s.id === studentId) {
-        return {
-          ...s,
-          status: 'approved',
-          approvedAt: new Date().toISOString().split('T')[0]
-        };
-      }
-      return s;
-    }));
-  };
-
-  const handleRejectStudent = (studentId: string, reason?: string) => {
-    setStudents(prev => prev.map(s => {
-      if (s.id === studentId) {
-        return {
-          ...s,
-          status: 'rejected',
-          rejectReason: reason || '신청 정보 불일치'
-        };
-      }
-      return s;
-    }));
-  };
-
-  const handleBatchApprove = () => {
+  const handleApproveStudent = async (studentId: string) => {
     const today = new Date().toISOString().split('T')[0];
-    setStudents(prev => prev.map(s => {
+    const target = students.find(s => s.id === studentId);
+    if (target) {
+      const updated: StudentProfile = {
+        ...target,
+        status: 'approved',
+        approvedAt: today
+      };
+      setStudents(prev => prev.map(s => s.id === studentId ? updated : s));
+      saveStudentToFirebase(updated).catch(console.error);
+    }
+  };
+
+  const handleRejectStudent = async (studentId: string, reason?: string) => {
+    const target = students.find(s => s.id === studentId);
+    if (target) {
+      const updated: StudentProfile = {
+        ...target,
+        status: 'rejected',
+        rejectReason: reason || '신청 정보 불일치'
+      };
+      setStudents(prev => prev.map(s => s.id === studentId ? updated : s));
+      saveStudentToFirebase(updated).catch(console.error);
+    }
+  };
+
+  const handleBatchApprove = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const updatedList = students.map(s => {
       if (s.status === 'pending') {
-        return {
+        const up: StudentProfile = {
           ...s,
           status: 'approved',
           approvedAt: today
         };
+        saveStudentToFirebase(up).catch(console.error);
+        return up;
       }
       return s;
-    }));
+    });
+    setStudents(updatedList);
   };
 
   // Student Management Handlers
@@ -230,7 +292,7 @@ export default function App() {
     setCurrentStudentId(studentId);
   };
 
-  const handleAddStudent = (newStudentData: Omit<StudentProfile, 'id'>, isTeacher?: boolean) => {
+  const handleAddStudent = async (newStudentData: Omit<StudentProfile, 'id'>, isTeacher?: boolean) => {
     const newId = `student-${Date.now()}`;
     const today = new Date().toISOString().split('T')[0];
     const newStudent: StudentProfile = {
@@ -240,6 +302,7 @@ export default function App() {
       appliedAt: today,
       approvedAt: isTeacher ? today : undefined,
     };
+    
     setStudents(prev => [...prev, newStudent]);
     setBooksByStudent(prev => ({
       ...prev,
@@ -252,13 +315,17 @@ export default function App() {
     if (isTeacher) {
       setCurrentStudentId(newId);
     }
+
+    // Save to Firebase
+    saveStudentToFirebase(newStudent).catch(console.error);
   };
 
-  const handleUpdateStudent = (updatedStudent: StudentProfile) => {
+  const handleUpdateStudent = async (updatedStudent: StudentProfile) => {
     setStudents(prev => prev.map(s => (s.id === updatedStudent.id ? updatedStudent : s)));
+    saveStudentToFirebase(updatedStudent).catch(console.error);
   };
 
-  const handleDeleteStudent = (studentId: string) => {
+  const handleDeleteStudent = async (studentId: string) => {
     setStudents(prev => {
       const remaining = prev.filter(s => s.id !== studentId);
       if (remaining.length === 0) {
@@ -279,6 +346,7 @@ export default function App() {
           password: '123'
         };
         setCurrentStudentId(fallbackStudent.id);
+        saveStudentToFirebase(fallbackStudent).catch(console.error);
         return [fallbackStudent];
       } else {
         if (currentStudentId === studentId) {
@@ -300,31 +368,41 @@ export default function App() {
       delete copy[studentId];
       return copy;
     });
+
+    // Delete in Firebase
+    deleteStudentFromFirebase(studentId).catch(console.error);
   };
 
   // Book Handlers (for current student)
-  const handleAddBook = (newBookData: Omit<BookEntry, 'id' | 'hasActivity'>) => {
+  const handleAddBook = async (newBookData: Omit<BookEntry, 'id' | 'hasActivity'>) => {
     const newBook: BookEntry = {
       ...newBookData,
       id: `book-${Date.now()}`,
       hasActivity: false,
     };
+    
     setBooksByStudent(prev => ({
       ...prev,
       [currentProfile.id]: [newBook, ...(prev[currentProfile.id] || [])]
     }));
+
+    // Save to Firebase
+    saveBookToFirebase(currentProfile.id, newBook).catch(console.error);
   };
 
-  const handleUpdateBook = (updatedBook: BookEntry) => {
+  const handleUpdateBook = async (updatedBook: BookEntry) => {
     setBooksByStudent(prev => ({
       ...prev,
       [currentProfile.id]: (prev[currentProfile.id] || []).map(b => 
         b.id === updatedBook.id ? updatedBook : b
       )
     }));
+
+    // Save to Firebase
+    saveBookToFirebase(currentProfile.id, updatedBook).catch(console.error);
   };
 
-  const handleDeleteBook = (id: string) => {
+  const handleDeleteBook = async (id: string) => {
     setBooksByStudent(prev => ({
       ...prev,
       [currentProfile.id]: (prev[currentProfile.id] || []).filter(b => b.id !== id)
@@ -333,6 +411,9 @@ export default function App() {
       ...prev,
       [currentProfile.id]: (prev[currentProfile.id] || []).filter(a => a.bookId !== id)
     }));
+
+    // Delete from Firebase
+    deleteBookFromFirebase(currentProfile.id, id).catch(console.error);
   };
 
   // Activity Handlers (for current student)
@@ -360,7 +441,7 @@ export default function App() {
     setIsActivityModalOpen(true);
   };
 
-  const handleSaveActivity = (activityData: ActivityData) => {
+  const handleSaveActivity = async (activityData: ActivityData) => {
     setActivitiesByStudent(prev => {
       const currentList = prev[currentProfile.id] || [];
       const exists = currentList.some(a => a.id === activityData.id);
@@ -376,37 +457,49 @@ export default function App() {
     // Mark corresponding book as hasActivity
     setBooksByStudent(prev => {
       const currentList = prev[currentProfile.id] || [];
+      const updatedBooks = currentList.map(b => {
+        if (b.id === activityData.bookId) {
+          const updatedB = { ...b, hasActivity: true, activityId: activityData.id };
+          saveBookToFirebase(currentProfile.id, updatedB).catch(console.error);
+          return updatedB;
+        }
+        return b;
+      });
       return {
         ...prev,
-        [currentProfile.id]: currentList.map(b => {
-          if (b.id === activityData.bookId) {
-            return { ...b, hasActivity: true, activityId: activityData.id };
-          }
-          return b;
-        })
+        [currentProfile.id]: updatedBooks
       };
     });
+
+    // Save to Firebase
+    saveActivityToFirebase(currentProfile.id, activityData).catch(console.error);
 
     setActiveTab('worksheet');
   };
 
-  const handleDeleteActivity = (id: string) => {
+  const handleDeleteActivity = async (id: string) => {
     const targetAct = activities.find(a => a.id === id);
     setActivitiesByStudent(prev => ({
       ...prev,
       [currentProfile.id]: (prev[currentProfile.id] || []).filter(a => a.id !== id)
     }));
+
     if (targetAct) {
       setBooksByStudent(prev => ({
         ...prev,
         [currentProfile.id]: (prev[currentProfile.id] || []).map(b => {
           if (b.id === targetAct.bookId) {
-            return { ...b, hasActivity: false, activityId: undefined };
+            const upB = { ...b, hasActivity: false, activityId: undefined };
+            saveBookToFirebase(currentProfile.id, upB).catch(console.error);
+            return upB;
           }
           return b;
         })
       }));
     }
+
+    // Delete in Firebase
+    deleteActivityFromFirebase(currentProfile.id, id).catch(console.error);
   };
 
   // Reset to initial sample data
@@ -414,12 +507,13 @@ export default function App() {
     setIsResetConfirmOpen(true);
   };
 
-  const confirmResetData = () => {
+  const confirmResetData = async () => {
     setStudents(initialStudents);
     setCurrentStudentId(initialStudents[0].id);
     setBooksByStudent(initialBooksByStudent);
     setActivitiesByStudent(initialActivitiesByStudent);
     setTeacherPassword('1234');
+    
     localStorage.removeItem('edutrack_students_list');
     localStorage.removeItem('edutrack_current_student_id');
     localStorage.removeItem('edutrack_books_by_student');
@@ -428,7 +522,11 @@ export default function App() {
     localStorage.removeItem('edutrack_reading_books');
     localStorage.removeItem('edutrack_reading_activities');
     localStorage.removeItem('edutrack_teacher_password');
+    
     setIsResetConfirmOpen(false);
+
+    // Reset cloud data as well
+    resetAllFirebaseData(initialStudents, initialBooksByStudent, initialActivitiesByStudent).catch(console.error);
   };
 
   return (
@@ -446,84 +544,53 @@ export default function App() {
         onOpenStudentManager={() => setIsStudentManagerOpen(true)}
         onOpenTeacherLogin={() => setIsTeacherLoginModalOpen(true)}
         onOpenTeacherDashboard={() => setIsTeacherDashboardOpen(true)}
+        onOpenFirebaseStatus={() => setIsFirebaseStatusOpen(true)}
         onResetData={handleResetData}
         onTriggerPrint={() => setActiveTab('print')}
       />
 
-      {/* Teacher Active Banner if Logged in */}
-      {isTeacherLoggedIn && (
-        <div className="bg-emerald-800 text-white px-4 py-2 text-xs flex items-center justify-between no-print shadow-inner">
-          <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="bg-emerald-600 font-extrabold px-2 py-0.5 rounded text-[11px]">
-                👨‍🏫 교사 관리자 모드
-              </span>
-              <span className="font-medium hidden sm:inline">
-                김은빛 선생님 로그인 중 | 학생 가입 승인, 비밀번호 확인 및 학생 삭제/편집 권한 활성화됨
-              </span>
-              {pendingStudentsCount > 0 && (
-                <span className="bg-rose-500 text-white font-extrabold px-2 py-0.5 rounded-full text-[10px] animate-pulse">
-                  신청 대기 {pendingStudentsCount}건
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsTeacherDashboardOpen(true)}
-                className="bg-white text-emerald-900 font-extrabold px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
-              >
-                교사 관리센터 열기
-              </button>
-              <button
-                type="button"
-                onClick={handleLogoutTeacher}
-                className="text-emerald-200 hover:text-white underline cursor-pointer"
-              >
-                로그아웃
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+      {/* Main Content Sections */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-6 space-y-6">
         {activeTab === 'bankbook' && (
-          <ReadingBankbook
-            books={books}
-            profile={currentProfile}
-            onAddBook={handleAddBook}
-            onUpdateBook={handleUpdateBook}
-            onDeleteBook={handleDeleteBook}
-            onOpenActivityForBook={handleOpenActivityForBook}
-            isAddModalOpen={isAddBookModalOpen}
-            setIsAddModalOpen={setIsAddBookModalOpen}
-          />
+          <div className="space-y-6">
+            <ReadingBankbook
+              profile={currentProfile}
+              books={books}
+              onOpenAddModal={() => setIsAddBookModalOpen(true)}
+              onUpdateBook={handleUpdateBook}
+              onDeleteBook={handleDeleteBook}
+              onOpenActivity={handleOpenActivityForBook}
+              isTeacherLoggedIn={isTeacherLoggedIn}
+            />
+          </div>
         )}
 
         {activeTab === 'worksheet' && (
           <ActivityWorksheetView
-            activities={activities}
-            books={books}
             profile={currentProfile}
-            onOpenCreate={handleOpenCreateActivity}
+            books={books}
+            activities={activities}
+            onOpenCreateActivity={handleOpenCreateActivity}
             onEditActivity={handleEditActivity}
             onDeleteActivity={handleDeleteActivity}
+            onSaveActivity={handleSaveActivity}
+            isTeacherLoggedIn={isTeacherLoggedIn}
           />
         )}
 
         {activeTab === 'tree' && (
           <ReadingTree
-            books={books}
             profile={currentProfile}
+            books={books}
+            onOpenAddModal={() => setIsAddBookModalOpen(true)}
           />
         )}
 
         {activeTab === 'stats' && (
           <ReadingAnalytics
-            books={books}
             profile={currentProfile}
+            books={books}
+            activities={activities}
           />
         )}
 
@@ -531,17 +598,14 @@ export default function App() {
           <ProfileSection
             profile={currentProfile}
             students={students}
-            onUpdateProfile={handleUpdateStudent}
+            books={books}
+            activities={activities}
+            booksCountByStudent={booksCountByStudent}
             onSelectStudent={handleSelectStudent}
-            onOpenAddStudentModal={() => setIsStudentManagerOpen(true)}
-            onDeleteStudent={handleDeleteStudent}
-            booksByStudentCount={booksCountByStudent}
-            totalBooksRead={books.length}
+            onUpdateProfile={handleUpdateStudent}
+            onOpenStudentManager={() => setIsStudentManagerOpen(true)}
             isTeacherLoggedIn={isTeacherLoggedIn}
-            onOpenTeacherLogin={() => setIsTeacherLoginModalOpen(true)}
-            onOpenTeacherDashboard={() => setIsTeacherDashboardOpen(true)}
-            onApproveStudent={handleApproveStudent}
-            onRejectStudent={handleRejectStudent}
+            onDeleteStudent={handleDeleteStudent}
           />
         )}
 
@@ -550,24 +614,25 @@ export default function App() {
             profile={currentProfile}
             books={books}
             activities={activities}
+            onBack={() => setActiveTab('bankbook')}
           />
         )}
       </main>
 
-      {/* Student Manager & Registration Modal */}
+      {/* Student Manager Modal (Switcher & Registration) */}
       <StudentManagerModal
         isOpen={isStudentManagerOpen}
         onClose={() => setIsStudentManagerOpen(false)}
         students={students}
-        currentStudentId={currentStudentId}
+        currentStudentId={currentProfile.id}
+        booksCountByStudent={booksCountByStudent}
         onSelectStudent={handleSelectStudent}
         onAddStudent={handleAddStudent}
-        onUpdateStudent={handleUpdateStudent}
-        onDeleteStudent={handleDeleteStudent}
-        booksByStudent={booksCountByStudent}
         isTeacherLoggedIn={isTeacherLoggedIn}
-        onOpenTeacherLogin={() => setIsTeacherLoginModalOpen(true)}
-        onOpenTeacherDashboard={() => setIsTeacherDashboardOpen(true)}
+        onOpenTeacherLogin={() => {
+          setIsStudentManagerOpen(false);
+          setIsTeacherLoginModalOpen(true);
+        }}
       />
 
       {/* Teacher Login Modal */}
@@ -578,12 +643,12 @@ export default function App() {
         onLoginSuccess={handleTeacherLoginSuccess}
       />
 
-      {/* Teacher Dashboard & Student Management Modal */}
+      {/* Teacher Dashboard Modal */}
       <TeacherDashboardModal
         isOpen={isTeacherDashboardOpen}
         onClose={() => setIsTeacherDashboardOpen(false)}
         students={students}
-        currentStudentId={currentStudentId}
+        currentStudentId={currentProfile.id}
         booksByStudent={booksCountByStudent}
         onApproveStudent={handleApproveStudent}
         onRejectStudent={handleRejectStudent}
@@ -607,6 +672,15 @@ export default function App() {
         profile={currentProfile}
       />
 
+      {/* Firebase Real-time DB Status Modal */}
+      <FirebaseStatusModal
+        isOpen={isFirebaseStatusOpen}
+        onClose={() => setIsFirebaseStatusOpen(false)}
+        isSyncing={isCloudSyncing}
+        lastSyncedAt={lastSyncedAt}
+        syncError={syncError}
+      />
+
       {/* Footer (No Print) */}
       <footer className="bg-white border-t border-amber-200 py-6 text-center text-xs text-stone-500 no-print mt-12">
         <div className="max-w-7xl mx-auto px-4 space-y-1.5">
@@ -614,10 +688,11 @@ export default function App() {
             초등학생 독서 기록장 • 에듀트랙(EduTrack) 교육 표준 양식
           </p>
           <p className="text-stone-400">
-            학생 신규 등록 신청 & 비밀번호 설정 • 교사 비밀번호 인증 및 관리자 모드 • 학생 신청 승인/반려 및 비밀번호 확인/편집 • 9가지 창의 독후 활동 워크시트
+            Google Cloud Firestore 실시간 연동 • 학생 신규 등록 신청 & 비밀번호 설정 • 교사 비밀번호 인증 및 관리자 모드 • 학생 신청 승인/반려 및 비밀번호 확인/편집 • 9가지 창의 독후 활동 워크시트
           </p>
         </div>
       </footer>
+
       {/* Data Reset Confirmation Modal */}
       {isResetConfirmOpen && (
         <div className="fixed inset-0 bg-black/70 z-[80] flex items-center justify-center p-4 backdrop-blur-xs">

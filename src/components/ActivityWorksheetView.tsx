@@ -624,8 +624,8 @@ export const ActivityWorksheetView: React.FC<ActivityWorksheetViewProps> = ({
 
             <div className="bg-stone-50 p-3.5 rounded-2xl border border-stone-200 text-xs space-y-1">
               <p className="font-bold text-stone-900 text-sm">📝 {activityToDelete.bookTitle}</p>
-              <p className="text-stone-600">유형: {ACTIVITY_TYPES.find(t => t.id === activityToDelete.type)?.title || activityToDelete.type}</p>
-              <p className="text-stone-500 text-[11px]">작성일: {activityToDelete.createdAt}</p>
+              <p className="text-stone-600">유형: {ACTIVITY_TYPES.find(t => t.type === activityToDelete.type)?.title || activityToDelete.type}</p>
+              <p className="text-stone-500 text-[11px]">작성일: {activityToDelete.date}</p>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
